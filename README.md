@@ -21,5 +21,7 @@ Also install youtube-dl avconv php5-cli and may be Redis.
 
 How to use
 ==========
+Set your own AppKey, Secret and Event Id in the Config file. The Event Id can be obtained from the Event URL in Facebook.
+
 Run the file readSongs.php every often. Depending on how often you run it, change the setting in config.php
 
