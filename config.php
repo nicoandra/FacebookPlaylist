@@ -8,10 +8,10 @@ define('FB_EVENT_ID', '1529633110618292');
 
 
 // Local settings
-define('MP3_FOLDER','/tmp/party');
+define('MP3_FOLDER','/home/nico/party'); // /tmp/party
 define('YOUTUBEDL_PATH','/usr/bin/youtube-dl');
-define('TIME_BETWEEN_RUNS', 600); // How often does this script run? (in seconds)
+define('TIME_BETWEEN_RUNS', 1800); // How often does this script run? (in seconds)
 define('COMMAND_TO_APPEND_A_SONG', '/usr/bin/clementine -a ');
-
+define('KID3CLI_PATH', '/usr/bin/kid3-cli');
 
 

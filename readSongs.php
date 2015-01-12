@@ -2,12 +2,23 @@
 require('config.php');
 require('vendor/autoload.php');
 require('vendor/facebook/php-sdk-v4/autoload.php');
+require('facebookHelper.php');
 require('datastorage.php');
 
 
 
-// return downloadVideoAndExtractAudio("https://www.youtube.com/watch?v=wZKSecK35DA");
+if(false){
+	$input = 'Temita lindo http://vimeo.com/50057855';
+	// $input = 'Temita lindo https://www.youtube.com/watch?v=yu4fOdK-KDs';
 
+	$url = false;
+	$url = !$url && parseYoutubeUrl($input) ? isYoutubeUrl($input) : $url;
+	$url = !$url && parseVimeoUrl($input) ? isVimeoUrl($input) : $url;
+
+
+	die('SONG IS '.$url.PHP_EOL);
+
+}
 
 
 
@@ -31,71 +42,134 @@ if(!$session){
 $untilWhen = mktime();
 $sinceWhen = $untilWhen-TIME_BETWEEN_RUNS;
 
+
+
+
 $request = new Facebook\FacebookRequest(
   $session,
   'GET',
-  '/'.FB_EVENT_ID.'/feed/?since='.$sinceWhen.'&until='.$untilWhen.'&limit=10'
+  '/'.FB_EVENT_ID.'/feed/?since='.$sinceWhen.'&until='.$untilWhen.'&limit=40'
 );
+
 
 $response = $request->execute();
 $graphObject = $response->getGraphObject();
 
 $data = $graphObject->asArray();
 if(!isset($data['data'])){
+	echo "No data";
 	return;
 }
 
 $data = $data['data'];
 
-foreach($data as $post){
+while($post = array_pop($data)){
 
-	if(!isset($post->message)){
+	$postObject = new FacebookGraphObject($post);
+
+	$message = $postObject->getLink();
+	$message = !$message ? $postObject->getMessage() : $message;
+	
+	if(!strlen($message)){
 		continue;
 	}
 
-	$id = $post->id;
+	$posterName = $postObject->getPublisherName();
+
+	$id = $postObject->getId();
 
 	if(DataStorage::isStatusVerified($id)){
 		continue;
 	}
 
-	DataStorage::markStatusAsVerified($id);
+	// DataStorage::markStatusAsVerified($id);
+	
 
-	$message = $post->message;
 
 	// Does this message look like a Youtube URL?
-	$url = isYoutubeUrl($post->message);
+	$url = false;
+	var_dump($message, $url);
+	$url = !$url && parseYoutubeUrl($message) ? isYoutubeUrl($message) : $url;
+	var_dump($url);
+	$url = !$url && parseVimeoUrl($message) ? isVimeoUrl($message) : $url;
+	var_dump($url);
+
+	// continue;
 
 	$reply = 'The song has been accepted. Thanks!';
 	if(!$url){
 		$reply = 'This does not seem to be a YouTube URL...';
+		continue;
 	}
+	// die($reply);
 
 	echo "Received {$url} ".PHP_EOL;
-	downloadVideoAndExtractAudio($url);
 
+	
+	$filename = downloadVideoAndExtractAudio($url);
+	setAlbumName($filename, $posterName);
+	addSongToQueue($filename);
 }
 
+function parseVimeoUrl($url){
+	$pattern = '#^(?:http?://)?';    # Optional URL scheme. Either http or https.
+    $pattern = '#(?:https?://)?';    # Optional URL scheme. Either http or https.
+    $pattern .= '(?:www\.)?';         #  Optional www subdomain.
+    $pattern .= '(?:';                #  Group host alternatives:
+    $pattern .=   'vimeo.com/';       #    Either youtu.be,
+    $pattern .= ')';                  #  End host alternatives.
+    $pattern .= '([\w]{7,11})';        # 11 characters (Length of Youtube video ids).
+    $pattern .= '(?:.+)?$#x';         # Optional other ending URL parameters.
+    preg_match($pattern, $url, $matches);
+    return (isset($matches[1])) ? $matches[1] : false;	
+}
+
+
+function parseYoutubeUrl($url) {
+	$pattern = '#^(?:https?://)?';    # Optional URL scheme. Either http or https.
+	$pattern = '#(?:https?://)?';    # Optional URL scheme. Either http or https.
+	$pattern .= '(?:www\.)?';         #  Optional www subdomain.
+	$pattern .= '(?:';                #  Group host alternatives:
+	$pattern .=   'youtu\.be/';       #    Either youtu.be,
+	$pattern .=   '|youtube\.com';    #    or youtube.com
+	$pattern .=   '(?:';              #    Group path alternatives:
+	$pattern .=     '/embed/';        #      Either /embed/,
+	$pattern .=     '|/v/';           #      or /v/,
+	$pattern .=     '|/watch\?v=';    #      or /watch?v=,    
+	$pattern .=     '|/watch\?.+&v='; #      or /watch?other_param&v=
+	$pattern .=   ')';                #    End path alternatives.
+	$pattern .= ')';                  #  End host alternatives.
+	$pattern .= '([\w-]{11})';        # 11 characters (Length of Youtube video ids).
+	$pattern .= '(?:.+)?$#x';         # Optional other ending URL parameters.
+	preg_match($pattern, $url, $matches);
+	return (isset($matches[1])) ? $matches[1] : false;
+}
 
 function isYoutubeUrl($url){
-	$rx = '~
-    ^(?:https?://)?              # Optional protocol
-     (?:www\.)?                  # Optional subdomain
-     (?:youtube\.com|youtu\.be)  # Mandatory domain name
-     /watch\?v=([^&]+)           # URI with video id as capture group 1
-     ~x';
-	$isYoutubeUrl = preg_match($rx, trim($url), $matches);
+	echo "Try YouTube {$url} ";
+	$youtubeKey = parseYoutubeUrl($url);
 
-	if(!$isYoutubeUrl){
+	if(!$youtubeKey){
 		return false;
 	}
 
-	if(!isset($matches[1])){
-		return false;
-	}
-
-	return "https://www.youtube.com/watch?v={$matches[1]}";
+	return "https://www.youtube.com/watch?v={$youtubeKey}";
 }
+
+
+function isVimeoUrl($url){
+	echo "Try Vimeo {$url} ";
+	$vimeoKey = parseVimeoUrl($url);
+
+	echo "Got key {$vimeoKey}\n";
+
+	if(!$vimeoKey){
+		return false;
+	}
+
+	return "http://vimeo.com/{$vimeoKey}";	
+}
+
 
 function downloadVideoAndExtractAudio($url){
 	if(!file_exists(MP3_FOLDER)){
@@ -117,6 +191,7 @@ function downloadVideoAndExtractAudio($url){
 	$command .= escapeshellarg("--id").' ';
 	$command .= escapeshellarg("--restrict-filenames").' ';
 	$command .= escapeshellarg("--no-overwrites").' ';
+	$command .= escapeshellarg("--add-metadata").' ';
 	$command .= escapeshellarg($url).' ';
 
 	exec($command, $return, $exitCode);
@@ -139,6 +214,25 @@ function downloadVideoAndExtractAudio($url){
 	if(!$filename){
 		return false;
 	}
+
+	return  MP3_FOLDER.'/'.$filename;
+
 	exec(COMMAND_TO_APPEND_A_SONG.' "'.MP3_FOLDER.'/'.$filename.'"');
 	return true;
 }
+
+
+function setAlbumName($path, $albumName){
+	$command = KID3CLI_PATH.' -c \'set album "'.$albumName.'" 2\' '. escapeshellarg($path);
+	echo $command;
+	exec($command);
+}
+
+function addSongToQueue($path){
+	exec(COMMAND_TO_APPEND_A_SONG.' '.escapeshellarg($path));
+}
+
+
+
+
+
