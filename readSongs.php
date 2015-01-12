@@ -8,13 +8,22 @@ require('datastorage.php');
 
 
 if(false){
-	$input = 'Temita lindo http://vimeo.com/50057855';
+	$message = 'Temita lindo https://soundcloud.com/lobsterdust/madonna-vs-bruno-mars';
 	// $input = 'Temita lindo https://www.youtube.com/watch?v=yu4fOdK-KDs';
 
-	$url = false;
-	$url = !$url && parseYoutubeUrl($input) ? isYoutubeUrl($input) : $url;
-	$url = !$url && parseVimeoUrl($input) ? isVimeoUrl($input) : $url;
+	var_dump($message, $url);
+	$url = !$url && parseYoutubeUrl($message) ? isYoutubeUrl($message) : $url;
+	var_dump($url);
+	$url = !$url && parseVimeoUrl($message) ? isVimeoUrl($message) : $url;
 
+	$url = !$url && parseSoundCloudUrl($message) ? isSoundCloudUrl($message) : $url;
+	var_dump($url);
+
+	// die('SONG IS '.$url.PHP_EOL);
+
+	$filename = downloadVideoAndExtractAudio($url);
+	setAlbumName($filename, 'DJ Kalambre');
+	addSongToQueue($filename);
 
 	die('SONG IS '.$url.PHP_EOL);
 
@@ -92,6 +101,8 @@ while($post = array_pop($data)){
 	$url = !$url && parseYoutubeUrl($message) ? isYoutubeUrl($message) : $url;
 	var_dump($url);
 	$url = !$url && parseVimeoUrl($message) ? isVimeoUrl($message) : $url;
+
+	$url = !$url && parseSoundCloudUrl($message) ? isSoundCloudUrl($message) : $url;
 	var_dump($url);
 
 	// continue;
@@ -113,16 +124,64 @@ while($post = array_pop($data)){
 
 function parseVimeoUrl($url){
 	$pattern = '#^(?:http?://)?';    # Optional URL scheme. Either http or https.
-    $pattern = '#(?:https?://)?';    # Optional URL scheme. Either http or https.
-    $pattern .= '(?:www\.)?';         #  Optional www subdomain.
-    $pattern .= '(?:';                #  Group host alternatives:
-    $pattern .=   'vimeo.com/';       #    Either youtu.be,
-    $pattern .= ')';                  #  End host alternatives.
-    $pattern .= '([\w]{7,11})';        # 11 characters (Length of Youtube video ids).
-    $pattern .= '(?:.+)?$#x';         # Optional other ending URL parameters.
-    preg_match($pattern, $url, $matches);
-    return (isset($matches[1])) ? $matches[1] : false;	
+	$pattern = '#(?:https?://)?';    # Optional URL scheme. Either http or https.
+	$pattern .= '(?:www\.)?';         #  Optional www subdomain.
+	$pattern .= '(?:';                #  Group host alternatives:
+	$pattern .=   'vimeo.com/';       #    Either youtu.be,
+	$pattern .= ')';                  #  End host alternatives.
+	$pattern .= '([\w]{7,11})';        # 11 characters (Length of Youtube video ids).
+	$pattern .= '(?:.+)?$#x';         # Optional other ending URL parameters.
+	preg_match($pattern, $url, $matches);
+	return (isset($matches[1])) ? $matches[1] : false;	
 }
+
+
+
+function isVimeoUrl($url){
+	echo "Try Vimeo {$url} ";
+	$vimeoKey = parseVimeoUrl($url);
+
+	echo "Got key {$vimeoKey}\n";
+
+	if(!$vimeoKey){
+		return false;
+	}
+
+	return "http://vimeo.com/{$vimeoKey}";	
+}
+
+
+
+
+function parseSoundCloudUrl($url){
+	$pattern = '#^(?:http?://)?';    # Optional URL scheme. Either http or https.
+	$pattern = '#(?:https?://)?';    # Optional URL scheme. Either http or https.
+	$pattern .= '(?:www\.)?';         #  Optional www subdomain.
+	$pattern .= '(?:';                #  Group host alternatives:
+	$pattern .=   'soundcloud.com/';       #    Either youtu.be,
+	$pattern .= ')';                  #  End host alternatives.
+	$pattern .= '(.*)';        # 11 characters (Length of Youtube video ids).
+	$pattern .= '(?:.+)?$#x';         # Optional other ending URL parameters.
+	preg_match($pattern, $url, $matches);
+	return (isset($matches[1])) ? $matches[1] : false;	
+}
+
+
+
+function isSoundCloudUrl($url){
+	echo "Try SoundCloud {$url} ";
+	$urlPath = parseSoundCloudUrl($url);
+
+	echo "Got key {$urlPath}\n";
+
+	if(!$urlPath){
+		return false;
+	}
+
+	return "http://soundcloud.com/{$urlPath}";	
+}
+
+
 
 
 function parseYoutubeUrl($url) {
@@ -155,21 +214,6 @@ function isYoutubeUrl($url){
 
 	return "https://www.youtube.com/watch?v={$youtubeKey}";
 }
-
-
-function isVimeoUrl($url){
-	echo "Try Vimeo {$url} ";
-	$vimeoKey = parseVimeoUrl($url);
-
-	echo "Got key {$vimeoKey}\n";
-
-	if(!$vimeoKey){
-		return false;
-	}
-
-	return "http://vimeo.com/{$vimeoKey}";	
-}
-
 
 function downloadVideoAndExtractAudio($url){
 	if(!file_exists(MP3_FOLDER)){
