@@ -6,7 +6,6 @@ require('facebookHelper.php');
 require('datastorage.php');
 
 
-
 if(false){
 	$message = 'Temita lindo https://soundcloud.com/lobsterdust/madonna-vs-bruno-mars';
 	// $input = 'Temita lindo https://www.youtube.com/watch?v=yu4fOdK-KDs';
@@ -29,10 +28,20 @@ if(false){
 
 }
 
+$cliOptions = getopt("",array("reset"));
+
+if(isset($cliOptions['reset']) && $cliOptions['reset']){
+	echo "Doing a first reset ...";
+	DataStorage::reset();	
+	return ;
+}
 
 
 // Init the data storage... I'm using Redis. Use whatever you like better.
 DataStorage::init();
+
+
+
 
 $lastVerificationTimestamp = DataStorage::getLastVerificationTimestamp();
 
@@ -49,7 +58,7 @@ if(!$session){
 }
 
 $untilWhen = mktime();
-$sinceWhen = $untilWhen-TIME_BETWEEN_RUNS;
+$sinceWhen = DataStorage::getLastVerificationTimestamp();
 
 
 
@@ -57,7 +66,7 @@ $sinceWhen = $untilWhen-TIME_BETWEEN_RUNS;
 $request = new Facebook\FacebookRequest(
   $session,
   'GET',
-  '/'.FB_EVENT_ID.'/feed/?since='.$sinceWhen.'&until='.$untilWhen.'&limit=40'
+  '/'.FB_EVENT_ID.'/feed/?since='.$sinceWhen.'&until='.$untilWhen.'&limit=9999999'
 );
 
 
@@ -97,13 +106,13 @@ while($post = array_pop($data)){
 
 	// Does this message look like a Youtube URL?
 	$url = false;
-	var_dump($message, $url);
+	// var_dump($message, $url);
 	$url = !$url && parseYoutubeUrl($message) ? isYoutubeUrl($message) : $url;
-	var_dump($url);
+	// var_dump($url);
 	$url = !$url && parseVimeoUrl($message) ? isVimeoUrl($message) : $url;
 
 	$url = !$url && parseSoundCloudUrl($message) ? isSoundCloudUrl($message) : $url;
-	var_dump($url);
+	// var_dump($url);
 
 	// continue;
 
@@ -118,6 +127,10 @@ while($post = array_pop($data)){
 
 	
 	$filename = downloadVideoAndExtractAudio($url);
+
+	if(!strlen($filename)){
+		continue;
+	}
 	setAlbumName($filename, $posterName);
 	addSongToQueue($filename);
 }

@@ -29,4 +29,8 @@ class DataStorage {
 		return self::$redis->sIsMember('partyInfo:processedEntries', $status);
 	}
 
+	public function reset(){
+		self::$redis->del('partyInfo');
+	}
+
 }
